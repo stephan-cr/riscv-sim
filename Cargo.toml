@@ -1,0 +1,7 @@
+[package]
+name = "riscv-sim"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+object = { version = "0.28", default-features = false, features = ["std", "read_core", "elf"] }
