@@ -203,7 +203,7 @@ where
 
         match self.decode(inst) {
             Some(Inst::Lui { rd, imm }) => {
-                self.register_file[rd as usize] = (imm as u32) << 12;
+                self.register_file[rd as usize] = (imm as u32);
                 self.register_file.pc += 4;
             }
             Some(Inst::Auipc { rd, imm }) => {
@@ -364,16 +364,46 @@ where
                     self.register_file[rs1 as usize].wrapping_sub(self.register_file[rs2 as usize]);
                 self.register_file.pc += 4;
             }
-            //Some(Inst::Sll { rd, rs1, rs2 }) => {}
-            //Some(Inst::Slt { rd, rs1, rs2 }) => {}
-            //Some(Inst::Sltu { rd, rs1, rs2 }) => {}
+            Some(Inst::Sll { rd, rs1, rs2 }) => {
+                self.register_file[rd as usize] =
+                    self.register_file[rs1 as usize] << (self.register_file[rs2 as usize] & 0x1f);
+                self.register_file.pc += 4;
+            }
+            Some(Inst::Slt { rd, rs1, rs2 }) => {
+                self.register_file[rd as usize] = if (self.register_file[rs1 as usize] as i32)
+                    < self.register_file[rs2 as usize] as i32
+                {
+                    1
+                } else {
+                    0
+                };
+                self.register_file.pc += 4;
+            }
+            Some(Inst::Sltu { rd, rs1, rs2 }) => {
+                self.register_file[rd as usize] =
+                    if self.register_file[rs1 as usize] < self.register_file[rs2 as usize] {
+                        1
+                    } else {
+                        0
+                    };
+                self.register_file.pc += 4;
+            }
             Some(Inst::Xor { rd, rs1, rs2 }) => {
                 self.register_file[rd as usize] =
                     self.register_file[rs1 as usize] ^ self.register_file[rs2 as usize];
                 self.register_file.pc += 4;
             }
-            //Some(Inst::Srl { rd, rs1, rs2 }) => {}
-            //Some(Inst::Sra { rd, rs1, rs2 }) => {}
+            Some(Inst::Srl { rd, rs1, rs2 }) => {
+                self.register_file[rd as usize] =
+                    self.register_file[rs1 as usize] >> (self.register_file[rs2 as usize] & 0x1f);
+                self.register_file.pc += 4;
+            }
+            Some(Inst::Sra { rd, rs1, rs2 }) => {
+                self.register_file[rd as usize] = ((self.register_file[rs1 as usize] as i32)
+                    >> (self.register_file[rs2 as usize] & 0x1f))
+                    as u32;
+                self.register_file.pc += 4;
+            }
             Some(Inst::Or { rd, rs1, rs2 }) => {
                 self.register_file[rd as usize] =
                     self.register_file[rs1 as usize] | self.register_file[rs2 as usize];
@@ -976,7 +1006,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 
     let mut hart = Hart::new(RegisterFile::new(), &mut memory, 0x80000000);
     hart.reset();
-    for i in 0..512 {
+    for i in 0..550 {
         hart.execute_next_inst();
         println!("{}", hart);
     }
