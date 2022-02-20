@@ -475,6 +475,16 @@ where
                     self.register_file.pc += imm.unsigned_abs();
                 }
             }
+            Some(Inst::Jalr { rd, rs1, imm }) => {
+                let pc = self.register_file.pc;
+                self.register_file.pc = if imm.is_negative() {
+                    self.register_file[rs1 as usize].wrapping_sub(imm.unsigned_abs())
+                } else {
+                    self.register_file[rs1 as usize].wrapping_add(imm.unsigned_abs())
+                } & 0xfffffffe;
+
+                self.register_file[rd as usize] = pc + 4;
+            }
             Some(Inst::Add { rd, rs1, rs2 }) => {
                 self.register_file[rd as usize] =
                     self.register_file[rs1 as usize].wrapping_add(self.register_file[rs2 as usize]);
