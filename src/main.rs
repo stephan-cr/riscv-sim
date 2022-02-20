@@ -427,6 +427,43 @@ where
 
                 self.register_file.pc += 4;
             }
+            Some(Inst::Sb {rs1, rs2, imm}) => {
+                let address = if imm.is_negative() {
+                    self.register_file[rs1 as usize].wrapping_sub(imm.unsigned_abs())
+                } else {
+                    self.register_file[rs1 as usize].wrapping_add(imm.unsigned_abs())
+                };
+
+                self.memory[address] = self.register_file[rs2 as usize] as u8;
+
+                self.register_file.pc += 4;
+            }
+            Some(Inst::Sh {rs1, rs2, imm}) => {
+                let address = if imm.is_negative() {
+                    self.register_file[rs1 as usize].wrapping_sub(imm.unsigned_abs())
+                } else {
+                    self.register_file[rs1 as usize].wrapping_add(imm.unsigned_abs())
+                };
+
+                self.memory[address] = self.register_file[rs2 as usize] as u8;
+                self.memory[address + 1] = (self.register_file[rs2 as usize] >> 8) as u8;
+
+                self.register_file.pc += 4;
+            }
+            Some(Inst::Sw {rs1, rs2, imm}) => {
+                let address = if imm.is_negative() {
+                    self.register_file[rs1 as usize].wrapping_sub(imm.unsigned_abs())
+                } else {
+                    self.register_file[rs1 as usize].wrapping_add(imm.unsigned_abs())
+                };
+
+                self.memory[address] = self.register_file[rs2 as usize] as u8;
+                self.memory[address + 1] = (self.register_file[rs2 as usize] >> 8) as u8;
+                self.memory[address + 2] = (self.register_file[rs2 as usize] >> 16) as u8;
+                self.memory[address + 3] = (self.register_file[rs2 as usize] >> 24) as u8;
+
+                self.register_file.pc += 4;
+            }
             Some(Inst::Jal { rd, imm }) => {
                 self.register_file[rd as usize] = self.register_file.pc + 4;
                 if rd == 0 {
