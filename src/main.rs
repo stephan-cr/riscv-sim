@@ -9,10 +9,7 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::ops::{Index, IndexMut, Range};
 
-use object::{
-    read::{ObjectSymbol, ObjectSymbolTable},
-    Object, ObjectSection,
-};
+use object::{Object, ObjectSection};
 
 #[derive(Debug)]
 struct RegisterFile {
@@ -203,28 +200,24 @@ where
 
         match self.decode(inst) {
             Some(Inst::Lui { rd, imm }) => {
-                self.register_file[rd as usize] = (imm as u32);
+                self.register_file[rd as usize] = imm as u32;
                 self.register_file.pc += 4;
             }
             Some(Inst::Auipc { rd, imm }) => {
-                if imm.is_negative() {
-                    self.register_file[rd as usize] =
-                        self.register_file.pc.wrapping_sub(imm.unsigned_abs());
+                self.register_file[rd as usize] = if imm.is_negative() {
+                    self.register_file.pc.wrapping_sub(imm.unsigned_abs())
                 } else {
-                    self.register_file[rd as usize] =
-                        self.register_file.pc.wrapping_add(imm.unsigned_abs());
-                }
+                    self.register_file.pc.wrapping_add(imm.unsigned_abs())
+                };
 
                 self.register_file.pc += 4;
             }
             Some(Inst::Addi { rd, rs1, imm }) => {
-                if imm.is_negative() {
-                    self.register_file[rd as usize] =
-                        self.register_file[rs1 as usize].wrapping_sub(imm.unsigned_abs());
+                self.register_file[rd as usize] = if imm.is_negative() {
+                    self.register_file[rs1 as usize].wrapping_sub(imm.unsigned_abs())
                 } else {
-                    self.register_file[rd as usize] =
-                        self.register_file[rs1 as usize].wrapping_add(imm.unsigned_abs());
-                }
+                    self.register_file[rs1 as usize].wrapping_add(imm.unsigned_abs())
+                };
 
                 self.register_file.pc += 4;
             }
@@ -263,13 +256,11 @@ where
             }
             Some(Inst::Beq { rs1, rs2, imm }) => {
                 if self.register_file[rs1 as usize] == self.register_file[rs2 as usize] {
-                    if imm.is_negative() {
-                        self.register_file.pc =
-                            self.register_file.pc.wrapping_sub(imm.unsigned_abs());
+                    self.register_file.pc = if imm.is_negative() {
+                        self.register_file.pc.wrapping_sub(imm.unsigned_abs())
                     } else {
-                        self.register_file.pc =
-                            self.register_file.pc.wrapping_add(imm.unsigned_abs());
-                    }
+                        self.register_file.pc.wrapping_add(imm.unsigned_abs())
+                    };
                 } else {
                     self.register_file.pc += 4;
                 }
@@ -278,26 +269,22 @@ where
                 if self.register_file[rs1 as usize] as i32
                     >= self.register_file[rs2 as usize] as i32
                 {
-                    if imm.is_negative() {
-                        self.register_file.pc =
-                            self.register_file.pc.wrapping_sub(imm.unsigned_abs());
+                    self.register_file.pc = if imm.is_negative() {
+                        self.register_file.pc.wrapping_sub(imm.unsigned_abs())
                     } else {
-                        self.register_file.pc =
-                            self.register_file.pc.wrapping_add(imm.unsigned_abs());
-                    }
+                        self.register_file.pc.wrapping_add(imm.unsigned_abs())
+                    };
                 } else {
                     self.register_file.pc += 4;
                 }
             }
             Some(Inst::Bgeu { rs1, rs2, imm }) => {
                 if self.register_file[rs1 as usize] <= self.register_file[rs2 as usize] {
-                    if imm.is_negative() {
-                        self.register_file.pc =
-                            self.register_file.pc.wrapping_sub(imm.unsigned_abs());
+                    self.register_file.pc = if imm.is_negative() {
+                        self.register_file.pc.wrapping_sub(imm.unsigned_abs())
                     } else {
-                        self.register_file.pc =
-                            self.register_file.pc.wrapping_add(imm.unsigned_abs());
-                    }
+                        self.register_file.pc.wrapping_add(imm.unsigned_abs())
+                    };
                 } else {
                     self.register_file.pc += 4;
                 }
@@ -306,12 +293,10 @@ where
                 if (self.register_file[rs1 as usize] as i32)
                     < self.register_file[rs2 as usize] as i32
                 {
-                    if imm.is_negative() {
-                        self.register_file.pc =
-                            self.register_file.pc.wrapping_sub(imm.unsigned_abs());
+                    self.register_file.pc = if imm.is_negative() {
+                        self.register_file.pc.wrapping_sub(imm.unsigned_abs())
                     } else {
-                        self.register_file.pc =
-                            self.register_file.pc.wrapping_add(imm.unsigned_abs());
+                        self.register_file.pc.wrapping_add(imm.unsigned_abs())
                     }
                 } else {
                     self.register_file.pc += 4;
@@ -319,26 +304,22 @@ where
             }
             Some(Inst::Bltu { rs1, rs2, imm }) => {
                 if self.register_file[rs1 as usize] < self.register_file[rs2 as usize] {
-                    if imm.is_negative() {
-                        self.register_file.pc =
-                            self.register_file.pc.wrapping_sub(imm.unsigned_abs());
+                    self.register_file.pc = if imm.is_negative() {
+                        self.register_file.pc.wrapping_sub(imm.unsigned_abs())
                     } else {
-                        self.register_file.pc =
-                            self.register_file.pc.wrapping_add(imm.unsigned_abs());
-                    }
+                        self.register_file.pc.wrapping_add(imm.unsigned_abs())
+                    };
                 } else {
                     self.register_file.pc += 4;
                 }
             }
             Some(Inst::Bne { rs1, rs2, imm }) => {
                 if self.register_file[rs1 as usize] != self.register_file[rs2 as usize] {
-                    if imm.is_negative() {
-                        self.register_file.pc =
-                            self.register_file.pc.wrapping_sub(imm.unsigned_abs());
+                    self.register_file.pc = if imm.is_negative() {
+                        self.register_file.pc.wrapping_sub(imm.unsigned_abs())
                     } else {
-                        self.register_file.pc =
-                            self.register_file.pc.wrapping_add(imm.unsigned_abs());
-                    }
+                        self.register_file.pc.wrapping_add(imm.unsigned_abs())
+                    };
                 } else {
                     self.register_file.pc += 4;
                 }
@@ -427,7 +408,7 @@ where
 
                 self.register_file.pc += 4;
             }
-            Some(Inst::Sb {rs1, rs2, imm}) => {
+            Some(Inst::Sb { rs1, rs2, imm }) => {
                 let address = if imm.is_negative() {
                     self.register_file[rs1 as usize].wrapping_sub(imm.unsigned_abs())
                 } else {
@@ -438,7 +419,7 @@ where
 
                 self.register_file.pc += 4;
             }
-            Some(Inst::Sh {rs1, rs2, imm}) => {
+            Some(Inst::Sh { rs1, rs2, imm }) => {
                 let address = if imm.is_negative() {
                     self.register_file[rs1 as usize].wrapping_sub(imm.unsigned_abs())
                 } else {
@@ -450,7 +431,7 @@ where
 
                 self.register_file.pc += 4;
             }
-            Some(Inst::Sw {rs1, rs2, imm}) => {
+            Some(Inst::Sw { rs1, rs2, imm }) => {
                 let address = if imm.is_negative() {
                     self.register_file[rs1 as usize].wrapping_sub(imm.unsigned_abs())
                 } else {
@@ -781,8 +762,6 @@ where
                 | ((0xf_f000 & raw_inst) as i32);
             assert!(rd < 32, "raw_inst: {:#x}", raw_inst);
 
-            eprintln!("rd = {}, imm = {}", rd, imm);
-
             inst = Some(Inst::Jal { rd, imm });
         } else if opcode == 0x67 {
             // J-type & I-type -> jump with immediate
@@ -791,8 +770,6 @@ where
             let funct3 = (0x7000 & raw_inst) >> 12;
             let rs1 = (0xf8000 & raw_inst) >> 15;
             let imm = (0xfff00000 & raw_inst) as i32 >> 20;
-
-            eprintln!("rd = {}, rs1 = {}, imm = {}", rd, rs1, imm);
 
             inst = if funct3 == 0x0 {
                 Some(Inst::Jalr { rd, rs1, imm })
@@ -1086,14 +1063,6 @@ enum Inst {
     Uret,
 }
 
-enum Funct3 {
-    Add = 0,
-}
-
-impl Funct3 {
-    const Addi: Funct3 = Funct3::Add;
-}
-
 fn main() -> Result<(), Box<dyn error::Error>> {
     let filename = if let Some(filename) = env::args().nth(1) {
         filename
@@ -1118,23 +1087,9 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         obj_file.endianness()
     );
 
-    // read symbols, might be used to find the start symbol later
-    if let Some(symbol_table) = obj_file.symbol_table() {
-        for symbol in symbol_table.symbols() {
-            println!("symbol: {}", symbol.name()?);
-        }
-    }
-
     let mut memory = Memory::new();
 
     for section in obj_file.sections() {
-        println!(
-            "{:#x?}, address = {:#x}, name = \"{}\"",
-            section.data()?,
-            section.address(),
-            section.name()?
-        );
-
         if !section.data()?.is_empty() {
             memory.insert(
                 section
@@ -1144,7 +1099,6 @@ fn main() -> Result<(), Box<dyn error::Error>> {
                 section.data()?,
             );
 
-            eprintln!("memory {:?}", memory);
             memory[section.address().try_into().unwrap()];
         }
     }
