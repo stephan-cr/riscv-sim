@@ -343,6 +343,72 @@ where
                     self.register_file.pc += 4;
                 }
             }
+            Some(Inst::Lb { rd, rs1, imm }) => {
+                let address = if imm.is_negative() {
+                    self.register_file[rs1 as usize].wrapping_sub(imm.unsigned_abs())
+                } else {
+                    self.register_file[rs1 as usize].wrapping_add(imm.unsigned_abs())
+                };
+
+                self.register_file[rd as usize] = {
+                    let mut byte = self.memory[address] as u32;
+
+                    if byte & 0x80 == 0x80 {
+                        byte |= 0xffffff00;
+                    }
+
+                    byte
+                };
+
+                self.register_file.pc += 4;
+            }
+            Some(Inst::Lbu { rd, rs1, imm }) => {
+                let address = if imm.is_negative() {
+                    self.register_file[rs1 as usize].wrapping_sub(imm.unsigned_abs())
+                } else {
+                    self.register_file[rs1 as usize].wrapping_add(imm.unsigned_abs())
+                };
+
+                self.register_file[rd as usize] = self.memory[address] as u32;
+
+                self.register_file.pc += 4;
+            }
+            Some(Inst::Lh { rd, rs1, imm }) => {
+                let address = if imm.is_negative() {
+                    self.register_file[rs1 as usize].wrapping_sub(imm.unsigned_abs())
+                } else {
+                    self.register_file[rs1 as usize].wrapping_add(imm.unsigned_abs())
+                };
+
+                self.register_file[rd as usize] = {
+                    let mut half_word = self.memory[address] as u32;
+                    half_word |= (self.memory[address + 1] as u32) << 8;
+
+                    if half_word & 0x8000 == 0x8000 {
+                        half_word |= 0xffff0000;
+                    }
+
+                    half_word
+                };
+
+                self.register_file.pc += 4;
+            }
+            Some(Inst::Lhu { rd, rs1, imm }) => {
+                let address = if imm.is_negative() {
+                    self.register_file[rs1 as usize].wrapping_sub(imm.unsigned_abs())
+                } else {
+                    self.register_file[rs1 as usize].wrapping_add(imm.unsigned_abs())
+                };
+
+                self.register_file[rd as usize] = {
+                    let mut half_word = self.memory[address] as u32;
+                    half_word |= (self.memory[address + 1] as u32) << 8;
+
+                    half_word
+                };
+
+                self.register_file.pc += 4;
+            }
             Some(Inst::Lw { rd, rs1, imm }) => {
                 let address = if imm.is_negative() {
                     self.register_file[rs1 as usize].wrapping_sub(imm.unsigned_abs())
