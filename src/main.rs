@@ -343,6 +343,24 @@ where
                     self.register_file.pc += 4;
                 }
             }
+            Some(Inst::Lw { rd, rs1, imm }) => {
+                let address = if imm.is_negative() {
+                    self.register_file[rs1 as usize].wrapping_sub(imm.unsigned_abs())
+                } else {
+                    self.register_file[rs1 as usize].wrapping_add(imm.unsigned_abs())
+                };
+
+                self.register_file[rd as usize] = {
+                    let mut word = self.memory[address] as u32;
+                    word |= (self.memory[address + 1] as u32) << 8;
+                    word |= (self.memory[address + 2] as u32) << 16;
+                    word |= (self.memory[address + 3] as u32) << 24;
+
+                    word
+                };
+
+                self.register_file.pc += 4;
+            }
             Some(Inst::Jal { rd, imm }) => {
                 self.register_file[rd as usize] = self.register_file.pc + 4;
                 if rd == 0 {
