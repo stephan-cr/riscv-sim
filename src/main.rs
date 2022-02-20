@@ -535,6 +535,15 @@ where
                     as u32;
                 self.register_file.pc += 4;
             }
+            Some(Inst::Srli { rd, rs1, shamt_i }) => {
+                self.register_file[rd as usize] = self.register_file[rs1 as usize] >> shamt_i;
+                self.register_file.pc += 4;
+            }
+            Some(Inst::Srai { rd, rs1, shamt_i }) => {
+                self.register_file[rd as usize] =
+                    ((self.register_file[rs1 as usize] as i32) >> shamt_i) as u32;
+                self.register_file.pc += 4;
+            }
             Some(Inst::Or { rd, rs1, rs2 }) => {
                 self.register_file[rd as usize] =
                     self.register_file[rs1 as usize] | self.register_file[rs2 as usize];
