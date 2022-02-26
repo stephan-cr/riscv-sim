@@ -540,6 +540,33 @@ where
                     self.register_file[rs1 as usize].wrapping_mul(self.register_file[rs2 as usize]);
                 self.register_file.pc += 4;
             }
+            Some(Inst::Mulh { rd, rs1, rs2 }) => {
+                // it is important to cast to i32 rs1 and rs2 first,
+                // such that the cast to i64 afterwards sign extends
+                // the register value
+                self.register_file[rd as usize] = (((self.register_file[rs1 as usize] as i32)
+                    as i64)
+                    .wrapping_mul((self.register_file[rs2 as usize] as i32) as i64)
+                    >> 32) as u32;
+                self.register_file.pc += 4;
+            }
+            Some(Inst::Mulhu { rd, rs1, rs2 }) => {
+                self.register_file[rd as usize] = ((self.register_file[rs1 as usize] as u64)
+                    .wrapping_mul(self.register_file[rs2 as usize] as u64)
+                    >> 32) as u32;
+                self.register_file.pc += 4;
+            }
+            Some(Inst::Mulhsu { rd, rs1, rs2 }) => {
+                // it is important to cast to i32 rs1 first, such that the
+                // cast to i64 afterwards sign extends the register value
+                //
+                // rs2 must not be sign extended
+                self.register_file[rd as usize] = (((self.register_file[rs1 as usize] as i32)
+                    as i64)
+                    .wrapping_mul(self.register_file[rs2 as usize] as i64)
+                    >> 32) as u32;
+                self.register_file.pc += 4;
+            }
             Some(Inst::Div { rd, rs1, rs2 }) => {
                 self.register_file[rd as usize] = if self.register_file[rs2 as usize] == 0x0 {
                     !0x0
