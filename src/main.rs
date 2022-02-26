@@ -535,6 +535,47 @@ where
                     self.register_file[rs1 as usize] & self.register_file[rs2 as usize];
                 self.register_file.pc += 4;
             }
+            Some(Inst::Mul { rd, rs1, rs2 }) => {
+                self.register_file[rd as usize] =
+                    self.register_file[rs1 as usize].wrapping_mul(self.register_file[rs2 as usize]);
+                self.register_file.pc += 4;
+            }
+            Some(Inst::Div { rd, rs1, rs2 }) => {
+                self.register_file[rd as usize] = if self.register_file[rs2 as usize] == 0x0 {
+                    !0x0
+                } else {
+                    (self.register_file[rs1 as usize] as i32)
+                        .wrapping_div(self.register_file[rs2 as usize] as i32)
+                        as u32
+                };
+                self.register_file.pc += 4;
+            }
+            Some(Inst::Divu { rd, rs1, rs2 }) => {
+                self.register_file[rd as usize] = if self.register_file[rs2 as usize] == 0x0 {
+                    !0x0
+                } else {
+                    self.register_file[rs1 as usize].wrapping_div(self.register_file[rs2 as usize])
+                };
+                self.register_file.pc += 4;
+            }
+            Some(Inst::Rem { rd, rs1, rs2 }) => {
+                self.register_file[rd as usize] = if self.register_file[rs2 as usize] == 0x0 {
+                    self.register_file[rs1 as usize]
+                } else {
+                    (self.register_file[rs1 as usize] as i32)
+                        .wrapping_rem(self.register_file[rs2 as usize] as i32)
+                        as u32
+                };
+                self.register_file.pc += 4;
+            }
+            Some(Inst::Remu { rd, rs1, rs2 }) => {
+                self.register_file[rd as usize] = if self.register_file[rs2 as usize] == 0x0 {
+                    self.register_file[rs1 as usize]
+                } else {
+                    self.register_file[rs1 as usize].wrapping_rem(self.register_file[rs2 as usize])
+                };
+                self.register_file.pc += 4;
+            }
             Some(Inst::Csrrw { rd: _rd, rs1, csr }) => {
                 // ignore
                 self.register_file
@@ -597,37 +638,57 @@ where
             assert!(rs2 < 32);
             let funct7 = (0xfe000000 & raw_inst) >> 25;
 
-            inst = if funct3 == 0x0 {
-                if funct7 == 0x0 {
+            inst = if funct7 == 0x0 {
+                if funct3 == 0x0 {
                     Some(Inst::Add { rd, rs1, rs2 })
-                } else if funct7 == 0x20 {
-                    Some(Inst::Sub { rd, rs1, rs2 })
-                } else {
-                    None
-                }
-            } else if funct3 == 0x1 && funct7 == 0x0 {
-                Some(Inst::Sll { rd, rs1, rs2 })
-            } else if funct3 == 0x2 && funct7 == 0x0 {
-                Some(Inst::Slt { rd, rs1, rs2 })
-            } else if funct3 == 0x3 && funct7 == 0x0 {
-                Some(Inst::Sltu { rd, rs1, rs2 })
-            } else if funct3 == 0x4 && funct7 == 0x0 {
-                Some(Inst::Xor { rd, rs1, rs2 })
-            } else if funct3 == 0x5 {
-                if funct7 == 0x0 {
+                } else if funct3 == 0x1 {
+                    Some(Inst::Sll { rd, rs1, rs2 })
+                } else if funct3 == 0x2 {
+                    Some(Inst::Slt { rd, rs1, rs2 })
+                } else if funct3 == 0x3 {
+                    Some(Inst::Sltu { rd, rs1, rs2 })
+                } else if funct3 == 0x4 {
+                    Some(Inst::Xor { rd, rs1, rs2 })
+                } else if funct3 == 0x5 {
                     Some(Inst::Srl { rd, rs1, rs2 })
-                } else if funct7 == 0x20 {
+                } else if funct3 == 0x6 {
+                    Some(Inst::Or { rd, rs1, rs2 })
+                } else if funct3 == 0x7 {
+                    Some(Inst::And { rd, rs1, rs2 })
+                } else {
+                    unreachable!("any other funct3 in funct7 == 0x0 not possible");
+                }
+            } else if funct7 == 0x1 {
+                if funct3 == 0x0 {
+                    Some(Inst::Mul { rd, rs1, rs2 })
+                } else if funct3 == 0x1 {
+                    Some(Inst::Mulh { rd, rs1, rs2 })
+                } else if funct3 == 0x2 {
+                    Some(Inst::Mulhsu { rd, rs1, rs2 })
+                } else if funct3 == 0x3 {
+                    Some(Inst::Mulhu { rd, rs1, rs2 })
+                } else if funct3 == 0x4 {
+                    Some(Inst::Div { rd, rs1, rs2 })
+                } else if funct3 == 0x5 {
+                    Some(Inst::Divu { rd, rs1, rs2 })
+                } else if funct3 == 0x6 {
+                    Some(Inst::Rem { rd, rs1, rs2 })
+                } else if funct3 == 0x7 {
+                    Some(Inst::Remu { rd, rs1, rs2 })
+                } else {
+                    unreachable!("any other funct3 in funct7 == 0x1 is not possible");
+                }
+            } else if funct7 == 0x20 {
+                if funct3 == 0x0 {
+                    Some(Inst::Sub { rd, rs1, rs2 })
+                } else if funct3 == 0x5 {
                     Some(Inst::Sra { rd, rs1, rs2 })
                 } else {
                     None
                 }
-            } else if funct3 == 0x6 && funct7 == 0x0 {
-                Some(Inst::Or { rd, rs1, rs2 })
-            } else if funct3 == 0x7 && funct7 == 0x0 {
-                Some(Inst::And { rd, rs1, rs2 })
             } else {
                 None
-            };
+            }
         } else if opcode == 0x3 {
             // I-type, load
             let rd = (0xf80 & raw_inst) >> 7;
@@ -1061,6 +1122,46 @@ enum Inst {
     Mret,
     Sret,
     Uret,
+    Mul {
+        rd: RegisterIdx,
+        rs1: RegisterIdx,
+        rs2: RegisterIdx,
+    },
+    Mulh {
+        rd: RegisterIdx,
+        rs1: RegisterIdx,
+        rs2: RegisterIdx,
+    },
+    Mulhsu {
+        rd: RegisterIdx,
+        rs1: RegisterIdx,
+        rs2: RegisterIdx,
+    },
+    Mulhu {
+        rd: RegisterIdx,
+        rs1: RegisterIdx,
+        rs2: RegisterIdx,
+    },
+    Div {
+        rd: RegisterIdx,
+        rs1: RegisterIdx,
+        rs2: RegisterIdx,
+    },
+    Divu {
+        rd: RegisterIdx,
+        rs1: RegisterIdx,
+        rs2: RegisterIdx,
+    },
+    Rem {
+        rd: RegisterIdx,
+        rs1: RegisterIdx,
+        rs2: RegisterIdx,
+    },
+    Remu {
+        rd: RegisterIdx,
+        rs1: RegisterIdx,
+        rs2: RegisterIdx,
+    },
 }
 
 fn main() -> Result<(), Box<dyn error::Error>> {
