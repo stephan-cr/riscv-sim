@@ -7,9 +7,10 @@ use std::error;
 use std::fmt::{self, Display, Formatter};
 use std::fs::File;
 use std::io::{BufReader, Read};
+use std::iter::{self, Iterator};
 use std::ops::{Index, IndexMut, Range};
 
-use object::{Object, ObjectSection};
+use object::{Object, ObjectSection, SectionKind};
 
 #[derive(Debug)]
 struct RegisterFile {
@@ -112,6 +113,12 @@ impl Memory {
     fn insert(&mut self, start_addr: u32, data: &[u8]) {
         let mut v = Vec::new();
         v.extend_from_slice(data);
+        self.map.insert(start_addr, v);
+    }
+
+    fn fill(&mut self, start_addr: u32, size: usize) {
+        let mut v = Vec::new();
+        v.extend(iter::repeat(4).take(size));
         self.map.insert(start_addr, v);
     }
 }
@@ -1218,16 +1225,28 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     let mut memory = Memory::new();
 
     for section in obj_file.sections() {
-        if !section.data()?.is_empty() {
-            memory.insert(
-                section
-                    .address()
-                    .try_into()
-                    .expect("must be a 32 bit address"),
-                section.data()?,
-            );
-
-            memory[section.address().try_into().unwrap()];
+        if section.size() > 0 {
+            match section.kind() {
+                SectionKind::Text | SectionKind::Data => {
+                    memory.insert(
+                        section
+                            .address()
+                            .try_into()
+                            .expect("must be a 32 bit address"),
+                        section.data()?,
+                    );
+                }
+                SectionKind::UninitializedData => {
+                    memory.fill(
+                        section
+                            .address()
+                            .try_into()
+                            .expect("must be a 32 bit address"),
+                        section.size() as usize,
+                    );
+                }
+                _ => {}
+            }
         }
     }
 
