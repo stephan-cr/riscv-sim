@@ -633,7 +633,7 @@ where
             Some(Inst::Mret) => {
                 self.register_file.pc = self.register_file.mepc;
             }
-            Some(Inst::Fence) | Some(Inst::Fence_i) => {
+            Some(Inst::Fence) | Some(Inst::FenceI) => {
                 // ignore
                 self.register_file.pc += 4;
             }
@@ -917,7 +917,7 @@ where
             } else if funct3 == 0x1 {
                 // as of 20191213 imm[11:0], rs1 and rd are reserved
                 // for future use, but unused yet
-                Some(Inst::Fence_i)
+                Some(Inst::FenceI)
             } else {
                 None
             }
@@ -1130,7 +1130,7 @@ enum Inst {
     Ecall,
     Ebreak,
     Fence,
-    Fence_i,
+    FenceI,
     Csrrw {
         rd: RegisterIdx,
         rs1: RegisterIdx,
