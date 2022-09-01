@@ -1,3 +1,4 @@
+#![warn(rust_2018_idioms)]
 #![allow(unused_variables)]
 
 use std::collections::BTreeMap;
@@ -8,8 +9,10 @@ use std::fmt::{self, Display, Formatter};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::iter::{self, Iterator};
-use std::ops::{Index, IndexMut, Range};
+use std::ops::{Index, IndexMut};
+use std::path::{Path, PathBuf};
 
+use clap::{crate_version, value_parser, Arg, Command};
 use object::{Object, ObjectSection, ObjectSegment, SectionKind};
 
 #[derive(Debug)]
@@ -1199,11 +1202,25 @@ enum Inst {
 }
 
 fn main() -> Result<(), Box<dyn error::Error>> {
-    let filename = if let Some(filename) = env::args().nth(1) {
-        filename
-    } else {
-        "/home/stephan/rotate".to_string()
-    };
+    let matches = Command::new(
+        Path::new(&env::args().next().unwrap())
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap(),
+    )
+    .version(crate_version!())
+    .arg(
+        Arg::new("riscv-elf-file")
+            .index(1)
+            .required(true)
+            .value_parser(value_parser!(PathBuf)),
+    )
+    .get_matches();
+
+    let filename = matches
+        .value_of("riscv-elf-file")
+        .expect("file path to RISCV ELF file");
 
     eprintln!("filename: {}", filename);
     let f = File::open(filename)?;
