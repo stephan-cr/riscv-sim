@@ -10,7 +10,7 @@ use std::io::{BufReader, Read};
 use std::iter::{self, Iterator};
 use std::ops::{Index, IndexMut, Range};
 
-use object::{Object, ObjectSection, SectionKind};
+use object::{Object, ObjectSection, ObjectSegment, SectionKind};
 
 #[derive(Debug)]
 struct RegisterFile {
@@ -1217,12 +1217,24 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     let obj_file = object::File::parse(&*buffer)?;
 
     println!(
-        "architecture {:?}, endianness {:?}",
+        "architecture {:?}, endianness {:?}, entry {:#x}",
         obj_file.architecture(),
-        obj_file.endianness()
+        obj_file.endianness(),
+        obj_file.entry()
     );
 
     let mut memory = Memory::new();
+
+    for segment in obj_file.segments() {
+        eprintln!(
+            "segment address {:#x}, size {}",
+            segment.address(),
+            segment.size()
+        );
+        if let Some(segment_name) = segment.name()? {
+            eprintln!("segment name: {}", segment_name);
+        }
+    }
 
     for section in obj_file.sections() {
         if section.size() > 0 {
