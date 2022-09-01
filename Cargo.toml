@@ -2,6 +2,7 @@
 name = "riscv-sim"
 version = "0.1.0"
 edition = "2021"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 clap = { version = "3.2", features = ["cargo"] }
