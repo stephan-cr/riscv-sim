@@ -1262,7 +1262,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         }
     }
 
-    let mut hart = Hart::new(RegisterFile::new(), &mut memory, 0x80000000);
+    let mut hart = Hart::new(RegisterFile::new(), &mut memory, obj_file.entry() as u32);
     hart.reset();
     for i in 0..550 {
         hart.execute_next_inst();
