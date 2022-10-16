@@ -1,4 +1,10 @@
+//! RISC-V simulator, which currently only implements a tiny subset of
+//! extensions.
+//!
+//! The simulator executes RISC-V programs from ELF files.
+
 #![warn(rust_2018_idioms)]
+#![warn(clippy::pedantic)]
 #![allow(unused_variables)]
 
 use std::collections::BTreeMap;
@@ -17,10 +23,14 @@ use object::{Object, ObjectSection, ObjectSegment, SectionKind};
 
 #[derive(Debug)]
 struct RegisterFile {
+    /// general purpose registers
     x: [u32; 32],
     // f: [f32, 32],
+    /// program counter
     pc: u32,
+    /// machine exception program counter
     mepc: u32,
+    /// machine trap vector base address register
     mtvec: u32,
 }
 
@@ -98,9 +108,12 @@ impl Display for RegisterFile {
     }
 }
 
+/// Represents an index into to general purpose register file
 type RegisterIdx = u32;
+/// Represents an intermediate value
 type Imm = i32;
 
+/// Represent the memory the [harts](Hart) access.
 #[derive(Debug)]
 struct Memory {
     map: BTreeMap<u32, Vec<u8>>,
@@ -166,6 +179,7 @@ impl IndexMut<u32> for Memory {
     }
 }
 
+/// A "hart" is the RISV-C term for what is commonly known as "core".
 struct Hart<'a, M>
 where
     M: Index<u32, Output = u8> + IndexMut<u32, Output = u8>,
@@ -345,7 +359,7 @@ where
                     let mut byte = self.memory[address] as u32;
 
                     if byte & 0x80 == 0x80 {
-                        byte |= 0xffffff00;
+                        byte |= 0xffff_ff00;
                     }
 
                     byte
@@ -376,7 +390,7 @@ where
                     half_word |= (self.memory[address + 1] as u32) << 8;
 
                     if half_word & 0x8000 == 0x8000 {
-                        half_word |= 0xffff0000;
+                        half_word |= 0xffff_0000;
                     }
 
                     half_word
@@ -472,7 +486,7 @@ where
                     self.register_file[rs1 as usize].wrapping_sub(imm.unsigned_abs())
                 } else {
                     self.register_file[rs1 as usize].wrapping_add(imm.unsigned_abs())
-                } & 0xfffffffe;
+                } & 0xffff_fffe;
 
                 self.register_file[rd as usize] = pc + 4;
             }
@@ -636,7 +650,7 @@ where
             Some(Inst::Mret) => {
                 self.register_file.pc = self.register_file.mepc;
             }
-            Some(Inst::Fence) | Some(Inst::FenceI) => {
+            Some(Inst::Fence | Inst::FenceI) => {
                 // ignore
                 self.register_file.pc += 4;
             }
@@ -653,9 +667,8 @@ where
         }
     }
 
+    /// set pc to an implementation-defined reset vector
     fn reset(&mut self) {
-        // set pc to an implementation-defined reset vector
-
         self.register_file.pc = self.reset_vector; // set it to zero for now
     }
 
@@ -663,19 +676,18 @@ where
     fn decode(&self, raw_inst: u32) -> Option<Inst> {
         let opcode = 0x7f & raw_inst;
 
-        let mut inst = None;
-        if opcode == 0x33 {
+        let inst = if opcode == 0x33 {
             // R-type (Integer Register-Register Operations)
             let rd = (0xf80 & raw_inst) >> 7;
             assert!(rd < 32);
             let funct3 = (0x7000 & raw_inst) >> 12;
             let rs1 = (0xf8000 & raw_inst) >> 15;
             assert!(rs1 < 32);
-            let rs2 = (0x1f00000 & raw_inst) >> 20;
+            let rs2 = (0x1f0_0000 & raw_inst) >> 20;
             assert!(rs2 < 32);
-            let funct7 = (0xfe000000 & raw_inst) >> 25;
+            let funct7 = (0xfe00_0000 & raw_inst) >> 25;
 
-            inst = if funct7 == 0x0 {
+            if funct7 == 0x0 {
                 if funct3 == 0x0 {
                     Some(Inst::Add { rd, rs1, rs2 })
                 } else if funct3 == 0x1 {
@@ -733,9 +745,9 @@ where
             let funct3 = (0x7000 & raw_inst) >> 12;
             let rs1 = (0xf8000 & raw_inst) >> 15;
             assert!(rs1 < 32);
-            let imm = (0xfff00000 & raw_inst) as i32 >> 20;
+            let imm = (0xfff0_0000 & raw_inst) as i32 >> 20;
 
-            inst = if funct3 == 0x0 {
+            if funct3 == 0x0 {
                 Some(Inst::Lb { rd, rs1, imm })
             } else if funct3 == 0x1 {
                 Some(Inst::Lh { rd, rs1, imm })
@@ -754,11 +766,11 @@ where
             assert!(rd < 32);
             let funct3 = (0x7000 & raw_inst) >> 12;
             let rs1 = (0xf8000 & raw_inst) >> 15;
-            let shamt = ((0x1f00000 & raw_inst) >> 20) as u8;
-            let funct7 = (0xfe000000 & raw_inst) >> 25;
-            let imm = (0xfff00000 & raw_inst) as i32 >> 20;
+            let shamt = ((0x1f0_0000 & raw_inst) >> 20) as u8;
+            let funct7 = (0xfe00_0000 & raw_inst) >> 25;
+            let imm = (0xfff0_0000 & raw_inst) as i32 >> 20;
 
-            inst = if funct3 == 0x0 {
+            if funct3 == 0x0 {
                 Some(Inst::Addi { rd, rs1, imm })
             } else if funct3 == 0x2 {
                 Some(Inst::Slti { rd, rs1, imm })
@@ -794,17 +806,17 @@ where
                 }
             } else {
                 None
-            };
+            }
         } else if opcode == 0x23 {
             // S-type (store operations)
             let funct3 = (0x7000 & raw_inst) >> 12;
             let rs1 = (0xf8000 & raw_inst) >> 15;
             assert!(rs1 < 32);
-            let rs2 = (0x1f00000 & raw_inst) >> 20;
+            let rs2 = (0x1f0_0000 & raw_inst) >> 20;
             assert!(rs2 < 32);
-            let imm = ((0xfe000000 & raw_inst) as i32 >> 20) | (((0xf80 & raw_inst) >> 7) as i32);
+            let imm = ((0xfe00_0000 & raw_inst) as i32 >> 20) | (((0xf80 & raw_inst) >> 7) as i32);
 
-            inst = if funct3 == 0x0 {
+            if funct3 == 0x0 {
                 Some(Inst::Sb { rs1, rs2, imm })
             } else if funct3 == 0x1 {
                 Some(Inst::Sh { rs1, rs2, imm })
@@ -818,13 +830,13 @@ where
             let funct3 = (0x7000 & raw_inst) >> 12;
             let rs1 = (0xf8000 & raw_inst) >> 15;
             assert!(rs1 < 32);
-            let rs2 = (0x1f00000 & raw_inst) >> 20;
+            let rs2 = (0x1f0_0000 & raw_inst) >> 20;
             assert!(rs2 < 32);
             let imm = ((0xfe00_0000 & raw_inst) as i32 >> 20)
                 | (((0xf00 & raw_inst) >> 7) as i32)
                 | (((0x80 & raw_inst) << 4) as i32);
 
-            inst = if funct3 == 0x0 {
+            if funct3 == 0x0 {
                 Some(Inst::Beq { rs1, rs2, imm })
             } else if funct3 == 0x1 {
                 Some(Inst::Bne { rs1, rs2, imm })
@@ -838,20 +850,20 @@ where
                 Some(Inst::Bgeu { rs1, rs2, imm })
             } else {
                 None
-            };
+            }
         } else if opcode == 0x17 || opcode == 0x37 {
             // U-type
             let rd = (0xf80 & raw_inst) >> 7;
             assert!(rd < 32);
             let imm = (0xffff_f000 & raw_inst) as i32;
 
-            inst = if opcode == 0x17 {
+            if opcode == 0x17 {
                 Some(Inst::Auipc { rd, imm })
             } else if opcode == 0x37 {
                 Some(Inst::Lui { rd, imm })
             } else {
                 None
-            };
+            }
         } else if opcode == 0x6f {
             // J-type
             let rd = (0xf80 & raw_inst) >> 7;
@@ -860,29 +872,29 @@ where
                 | ((0xf_f000 & raw_inst) as i32);
             assert!(rd < 32, "raw_inst: {:#x}", raw_inst);
 
-            inst = Some(Inst::Jal { rd, imm });
+            Some(Inst::Jal { rd, imm })
         } else if opcode == 0x67 {
             // J-type & I-type -> jump with immediate
             let rd = (0xf80 & raw_inst) >> 7;
             assert!(rd < 32);
             let funct3 = (0x7000 & raw_inst) >> 12;
             let rs1 = (0xf8000 & raw_inst) >> 15;
-            let imm = (0xfff00000 & raw_inst) as i32 >> 20;
+            let imm = (0xfff0_0000 & raw_inst) as i32 >> 20;
 
-            inst = if funct3 == 0x0 {
+            if funct3 == 0x0 {
                 Some(Inst::Jalr { rd, rs1, imm })
             } else {
                 None
-            };
+            }
         } else if opcode == 0x73 {
             // SYSTEM
             let rd = (0xf80 & raw_inst) >> 7;
             let rs1 = (0xf8000 & raw_inst) >> 15;
             let funct3 = (0x7000 & raw_inst) >> 12;
             let uimm = ((0xf8000 & raw_inst) >> 15) as u8;
-            let csr = ((0xfff00000 & raw_inst) >> 20) as u16;
+            let csr = ((0xfff0_0000 & raw_inst) >> 20) as u16;
 
-            inst = if raw_inst == 0x0000_0073 {
+            if raw_inst == 0x0000_0073 {
                 Some(Inst::Ecall)
             } else if raw_inst == 0x0010_0073 {
                 Some(Inst::Ebreak)
@@ -915,7 +927,7 @@ where
             // a simple hart implementation may interpret a fence as
             // NOP
 
-            inst = if funct3 == 0x0 {
+            if funct3 == 0x0 {
                 Some(Inst::Fence)
             } else if funct3 == 0x1 {
                 // as of 20191213 imm[11:0], rs1 and rd are reserved
@@ -927,7 +939,7 @@ where
         } else {
             // error
             panic!("not implemented opcode {:#x}", opcode);
-        }
+        };
 
         eprintln!("inst: {:?} {:#x}", inst, raw_inst);
 
@@ -944,8 +956,12 @@ where
     }
 }
 
-type Register = u32;
-
+/// RISC-V instructions
+///
+/// The following parts from the instructions are implemented:
+///
+/// - base integer instruction set
+/// - "M" standard extension for integer multiplication and division
 #[derive(Debug)]
 enum Inst {
     Lui {
