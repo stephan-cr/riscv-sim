@@ -5,5 +5,5 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-clap = { version = "3.2", features = ["cargo"] }
+clap = { version = "3.2", features = ["cargo", "deprecated"] }
 object = { version = "0.29", default-features = false, features = ["std", "read_core", "elf"] }
