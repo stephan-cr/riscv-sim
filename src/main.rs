@@ -53,7 +53,7 @@ impl RegisterFile {
             0x305 => self.mtvec, // mtvec
             0x341 => self.mepc,  // mepc
             0xf14 => 0,          // mhartid
-            _ => panic!("reading invalid csr at address {}", address),
+            _ => panic!("reading invalid csr at address {address}"),
         }
     }
 
@@ -67,7 +67,7 @@ impl RegisterFile {
             } // mepc
             0x3a0 => {} // ignore pmpcfg0
             0x3b0 => {} // ignore pmpaddr0
-            _ => panic!("setting invalid csr at address {}", address),
+            _ => panic!("setting invalid csr at address {address}"),
         }
     }
 }
@@ -81,7 +81,7 @@ impl Index<usize> for RegisterFile {
         } else if index < self.x.len() {
             &self.x[index]
         } else {
-            panic!("invalid register index {}", index);
+            panic!("invalid register index {index}");
         }
     }
 }
@@ -91,7 +91,7 @@ impl IndexMut<usize> for RegisterFile {
         if index < self.x.len() {
             &mut self.x[index]
         } else {
-            panic!("invalid register index {}", index);
+            panic!("invalid register index {index}");
         }
     }
 }
@@ -99,7 +99,7 @@ impl IndexMut<usize> for RegisterFile {
 impl Display for RegisterFile {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
         for x in self.x {
-            write!(f, "{:#x}, ", x)?;
+            write!(f, "{x:#x}, ")?;
         }
 
         write!(f, "pc: {:#x}", self.pc)?;
@@ -147,10 +147,10 @@ impl Index<u32> for Memory {
             if *k <= index && ((index - *k) as usize) < v.len() {
                 &v[(index - *k) as usize]
             } else {
-                panic!("unknown memory map for {:#x}", index);
+                panic!("unknown memory map for {index:#x}");
             }
         } else {
-            panic!("unknown memory map at all for {:#x}", index);
+            panic!("unknown memory map at all for {index:#x}");
         }
     }
 }
@@ -169,10 +169,10 @@ impl IndexMut<u32> for Memory {
             if *k <= index && ((index - *k) as usize) < v.len() {
                 *k
             } else {
-                panic!("unknown memory map for {:#x}", index);
+                panic!("unknown memory map for {index:#x}");
             }
         } else {
-            panic!("unknown memory map at all for {:#x}", index);
+            panic!("unknown memory map at all for {index:#x}");
         };
 
         &mut self.map.get_mut(&mem_entry).unwrap()[(index - mem_entry) as usize]
@@ -214,10 +214,10 @@ where
         // let inst = u32::from_le_bytes(u32_bytes.try_into().unwrap());
 
         let inst = {
-            let mut inst: u32 = self.memory[self.register_file.pc] as u32;
-            inst |= (self.memory[self.register_file.pc + 1] as u32) << 8;
-            inst |= (self.memory[self.register_file.pc + 2] as u32) << 16;
-            inst |= (self.memory[self.register_file.pc + 3] as u32) << 24;
+            let mut inst: u32 = u32::from(self.memory[self.register_file.pc]);
+            inst |= u32::from(self.memory[self.register_file.pc + 1]) << 8;
+            inst |= u32::from(self.memory[self.register_file.pc + 2]) << 16;
+            inst |= u32::from(self.memory[self.register_file.pc + 3]) << 24;
 
             inst
         };
@@ -246,20 +246,13 @@ where
                 self.register_file.pc += 4;
             }
             Some(Inst::Slti { rd, rs1, imm }) => {
-                self.register_file[rd as usize] = if (self.register_file[rs1 as usize] as i32) < imm
-                {
-                    1
-                } else {
-                    0
-                };
+                self.register_file[rd as usize] =
+                    u32::from((self.register_file[rs1 as usize] as i32) < imm);
                 self.register_file.pc += 4;
             }
             Some(Inst::Sltiu { rd, rs1, imm }) => {
-                self.register_file[rd as usize] = if self.register_file[rs1 as usize] < imm as u32 {
-                    1
-                } else {
-                    0
-                };
+                self.register_file[rd as usize] =
+                    u32::from(self.register_file[rs1 as usize] < imm as u32);
                 self.register_file.pc += 4;
             }
             Some(Inst::Xori { rd, rs1, imm }) => {
@@ -506,22 +499,15 @@ where
                 self.register_file.pc += 4;
             }
             Some(Inst::Slt { rd, rs1, rs2 }) => {
-                self.register_file[rd as usize] = if (self.register_file[rs1 as usize] as i32)
-                    < self.register_file[rs2 as usize] as i32
-                {
-                    1
-                } else {
-                    0
-                };
+                self.register_file[rd as usize] = u32::from(
+                    (self.register_file[rs1 as usize] as i32)
+                        < self.register_file[rs2 as usize] as i32,
+                );
                 self.register_file.pc += 4;
             }
             Some(Inst::Sltu { rd, rs1, rs2 }) => {
                 self.register_file[rd as usize] =
-                    if self.register_file[rs1 as usize] < self.register_file[rs2 as usize] {
-                        1
-                    } else {
-                        0
-                    };
+                    u32::from(self.register_file[rs1 as usize] < self.register_file[rs2 as usize]);
                 self.register_file.pc += 4;
             }
             Some(Inst::Xor { rd, rs1, rs2 }) => {
@@ -659,7 +645,7 @@ where
             }
             Some(inst) => {
                 self.register_file.pc += 4;
-                panic!("not able to decode {:?} yet", inst);
+                panic!("not able to decode {inst:?} yet");
             }
             _ => {
                 panic!("invalid instruction");
@@ -870,7 +856,7 @@ where
             let imm = ((0xffe0_0000 & raw_inst) as i32 >> 20)
                 | ((0x10_0000 & raw_inst) as i32 >> 9)
                 | ((0xf_f000 & raw_inst) as i32);
-            assert!(rd < 32, "raw_inst: {:#x}", raw_inst);
+            assert!(rd < 32, "raw_inst: {raw_inst:#x}");
 
             Some(Inst::Jal { rd, imm })
         } else if opcode == 0x67 {
@@ -938,10 +924,10 @@ where
             }
         } else {
             // error
-            panic!("not implemented opcode {:#x}", opcode);
+            panic!("not implemented opcode {opcode:#x}");
         };
 
-        eprintln!("inst: {:?} {:#x}", inst, raw_inst);
+        eprintln!("inst: {inst:?} {raw_inst:#x}");
 
         inst
     }
@@ -1259,7 +1245,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
             segment.size()
         );
         if let Some(segment_name) = segment.name()? {
-            eprintln!("segment name: {}", segment_name);
+            eprintln!("segment name: {segment_name}");
         }
     }
 
@@ -1289,11 +1275,15 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         }
     }
 
-    let mut hart = Hart::new(RegisterFile::new(), &mut memory, obj_file.entry() as u32);
+    let mut hart = Hart::new(
+        RegisterFile::new(),
+        &mut memory,
+        u32::try_from(obj_file.entry()).unwrap(),
+    );
     hart.reset();
     for i in 0..550 {
         hart.execute_next_inst();
-        println!("{}", hart);
+        println!("{hart}");
     }
 
     Ok(())
