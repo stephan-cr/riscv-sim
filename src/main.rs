@@ -16,7 +16,7 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::iter::{self, Iterator};
 use std::ops::{Index, IndexMut};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use clap::{crate_name, crate_version, value_parser, Arg, Command};
 use object::{Object, ObjectSection, ObjectSegment, SectionKind};
@@ -1215,7 +1215,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         .get_matches();
 
     let filename = matches
-        .get_one::<&Path>("riscv-elf-file")
+        .get_one::<PathBuf>("riscv-elf-file")
         .expect("file path to RISCV ELF file");
 
     eprintln!("filename: {}", filename.display());
