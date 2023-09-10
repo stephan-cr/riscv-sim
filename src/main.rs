@@ -30,6 +30,8 @@ struct RegisterFile {
     pc: u32,
     /// machine exception program counter
     mepc: u32,
+    /// machine status
+    mstatus: u32,
     /// machine trap vector base address register
     mtvec: u32,
 }
@@ -43,31 +45,39 @@ impl RegisterFile {
             ],
             pc: 0,
             mepc: 0,
+            mstatus: 0,
             mtvec: 0,
         }
     }
 
     fn csr(&self, address: u16) -> u32 {
         match address {
-            0x108 => 0xff,       // satp - Supervisor address translation and protection
-            0x305 => self.mtvec, // mtvec
-            0x341 => self.mepc,  // mepc
-            0xf14 => 0,          // mhartid
-            _ => panic!("reading invalid csr at address {address}"),
+            0x108 => 0xff,         // satp - Supervisor address translation and protection
+            0x300 => self.mstatus, // mstatus
+            0x305 => self.mtvec,   // mtvec
+            0x340 => 0,            // mscratch
+            0x341 => self.mepc,    // mepc
+            0xf14 => 0,            // mhartid
+            _ => panic!("reading invalid csr at address {address:#x}"),
         }
     }
 
     fn set_csr(&mut self, address: u16, val: u32) {
         match address {
+            0x300 => {
+                self.mstatus = val;
+            }
             0x305 => {
                 self.mtvec = val;
             }
+            0x340 => {} // mscratch
             0x341 => {
                 self.mepc = val;
             } // mepc
             0x3a0 => {} // ignore pmpcfg0
             0x3b0 => {} // ignore pmpaddr0
-            _ => panic!("setting invalid csr at address {address}"),
+            0xf14 => {} // ignore mhartid
+            _ => panic!("setting invalid csr at address {address:#x}"),
         }
     }
 }
@@ -624,13 +634,19 @@ where
                 self.register_file.pc += 4;
             }
             Some(Inst::Csrrs { rd, rs1, csr }) => {
-                self.register_file[rd as usize] = self.register_file.csr(csr);
-                if rs1 != 0 {
-                    unimplemented!(
-                        "atomic read and set bits in CSR not implemented for rs1 == {}",
-                        rs1
-                    );
-                }
+                // The initial value in integer register rs1 is
+                // treated as a bit mask that specifies bit positions
+                // to be set in the CSR. Any bit that is high in rs1
+                // will cause the corresponding bit to be set in the
+                // CSR, if that CSR bit is writable.  Other bits in
+                // the CSR are unaffected (though CSRs might have side
+                // effects when written).
+                //
+                // p. 56 (unpriv. spec)
+                let csr_value = self.register_file.csr(csr) | self.register_file[rs1 as usize];
+                self.register_file[rd as usize] = csr_value;
+                self.register_file.set_csr(csr, csr_value);
+
                 self.register_file.pc += 4;
             }
             Some(Inst::Mret) => {
@@ -645,7 +661,7 @@ where
             }
             Some(inst) => {
                 self.register_file.pc += 4;
-                panic!("not able to decode {inst:?} yet");
+                panic!("not able to execute {inst:?} yet");
             }
             _ => {
                 panic!("invalid instruction");
