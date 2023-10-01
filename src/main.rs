@@ -54,10 +54,14 @@ impl RegisterFile {
         match address {
             0x108 => 0xff,         // satp - Supervisor address translation and protection
             0x300 => self.mstatus, // mstatus
-            0x305 => self.mtvec,   // mtvec
-            0x340 => 0,            // mscratch
-            0x341 => self.mepc,    // mepc
-            0xf14 => 0,            // mhartid
+            0x301 => 0x4000_0000, // misa (only encode XLEN for now, encode all available extensions later)
+            0x305 => self.mtvec,  // mtvec
+            0x340 => 0,           // mscratch
+            0x341 => self.mepc,   // mepc
+            0xf11 => 0,           // mvendorid
+            0xf12 => 0,           // marchid
+            0xf13 => 0,           // mimpid
+            0xf14 => 0,           // mhartid
             _ => panic!("reading invalid csr at address {address:#x}"),
         }
     }
@@ -67,6 +71,7 @@ impl RegisterFile {
             0x300 => {
                 self.mstatus = val;
             }
+            0x301 => {} // ignore misa for now
             0x305 => {
                 self.mtvec = val;
             }
@@ -76,6 +81,9 @@ impl RegisterFile {
             } // mepc
             0x3a0 => {} // ignore pmpcfg0
             0x3b0 => {} // ignore pmpaddr0
+            0xf11 => {} // ignore mvendorid
+            0xf12 => {} // ignore marchid
+            0xf13 => {} // ignore mimpid
             0xf14 => {} // ignore mhartid
             _ => panic!("setting invalid csr at address {address:#x}"),
         }
