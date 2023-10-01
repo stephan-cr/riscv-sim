@@ -1276,7 +1276,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     for section in obj_file.sections() {
         if section.size() > 0 {
             match section.kind() {
-                SectionKind::Text | SectionKind::Data => {
+                SectionKind::Text | SectionKind::Data | SectionKind::ReadOnlyData => {
                     memory.insert(
                         section
                             .address()
