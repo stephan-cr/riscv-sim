@@ -641,6 +641,13 @@ where
                 // ignore
                 self.register_file.pc += 4;
             }
+            Some(Inst::Csrrc { rd, rs1, csr }) => {
+                let csr_value = self.register_file.csr(csr) & !self.register_file[rs1 as usize];
+                self.register_file[rd as usize] = csr_value;
+                self.register_file.set_csr(csr, csr_value);
+
+                self.register_file.pc += 4;
+            }
             Some(Inst::Csrrs { rd, rs1, csr }) => {
                 // The initial value in integer register rs1 is
                 // treated as a bit mask that specifies bit positions
@@ -1165,11 +1172,13 @@ enum Inst {
         rs1: RegisterIdx,
         csr: u16,
     },
+    /// Atomic Read and Set Bits in CSR
     Csrrs {
         rd: RegisterIdx,
         rs1: RegisterIdx,
         csr: u16,
     },
+    /// Atomic Read and Clear Bits in CSR
     Csrrc {
         rd: RegisterIdx,
         rs1: RegisterIdx,
