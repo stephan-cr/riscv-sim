@@ -631,14 +631,30 @@ where
                 };
                 self.register_file.pc += 4;
             }
-            Some(Inst::Csrrw { rd: _rd, rs1, csr }) => {
-                // ignore
-                self.register_file
-                    .set_csr(csr, self.register_file[rs1 as usize]);
+            Some(Inst::Csrrci { rd, uimm, csr }) => {
+                let csr_value = self.register_file.csr(csr) & !(uimm as u32);
+                self.register_file[rd as usize] = csr_value;
+                self.register_file.set_csr(csr, csr_value);
+
+                self.register_file.pc += 4;
+            }
+            Some(Inst::Csrrsi { rd, uimm, csr }) => {
+                let csr_value = self.register_file.csr(csr) | (uimm as u32);
+                self.register_file[rd as usize] = csr_value;
+                self.register_file.set_csr(csr, csr_value);
+
                 self.register_file.pc += 4;
             }
             Some(Inst::Csrrwi { rd, uimm, csr }) => {
-                // ignore
+                // For CSRRWI, if rd=x0, then the instruction shall
+                // not read the CSR and shall not cause any of the
+                // side effects that might occur on a CSR read.
+                if rd != 0 {
+                    self.register_file.csr(csr);
+                }
+
+                self.register_file.set_csr(csr, uimm as u32);
+
                 self.register_file.pc += 4;
             }
             Some(Inst::Csrrc { rd, rs1, csr }) => {
@@ -661,6 +677,15 @@ where
                 let csr_value = self.register_file.csr(csr) | self.register_file[rs1 as usize];
                 self.register_file[rd as usize] = csr_value;
                 self.register_file.set_csr(csr, csr_value);
+
+                self.register_file.pc += 4;
+            }
+            Some(Inst::Csrrw { rd, rs1, csr }) => {
+                if rd != 0 {
+                    self.register_file[rd as usize] = self.register_file.csr(csr);
+                }
+                self.register_file
+                    .set_csr(csr, self.register_file[rs1 as usize]);
 
                 self.register_file.pc += 4;
             }
@@ -930,9 +955,9 @@ where
             } else if funct3 == 0x5 {
                 Some(Inst::Csrrwi { rd, uimm, csr })
             } else if funct3 == 0x6 {
-                Some(Inst::Csrrsi)
+                Some(Inst::Csrrsi { rd, uimm, csr })
             } else if funct3 == 0x7 {
-                Some(Inst::Csrrci)
+                Some(Inst::Csrrci { rd, uimm, csr })
             } else {
                 None
             }
@@ -1167,6 +1192,7 @@ enum Inst {
     Ebreak,
     Fence,
     FenceI,
+    /// Atomic Read/Write CSR
     Csrrw {
         rd: RegisterIdx,
         rs1: RegisterIdx,
@@ -1189,8 +1215,16 @@ enum Inst {
         uimm: u8,
         csr: u16,
     },
-    Csrrsi,
-    Csrrci,
+    Csrrsi {
+        rd: RegisterIdx,
+        uimm: u8,
+        csr: u16,
+    },
+    Csrrci {
+        rd: RegisterIdx,
+        uimm: u8,
+        csr: u16,
+    },
     Mret,
     Sret,
     Uret,
