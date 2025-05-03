@@ -20,6 +20,7 @@ use std::path::PathBuf;
 
 use clap::{crate_name, crate_version, value_parser, Arg, Command};
 use object::{Object, ObjectSection, ObjectSegment, SectionKind};
+use object::{Architecture, BinaryFormat, Object, ObjectSection, ObjectSegment, SectionKind};
 
 #[derive(Debug)]
 struct RegisterFile {
@@ -30,6 +31,8 @@ struct RegisterFile {
     pc: u32,
     /// machine exception program counter
     mepc: u32,
+    /// machine interrupt-enable register
+    mie: u32,
     /// machine status
     mstatus: u32,
     /// machine trap vector base address register
@@ -45,6 +48,7 @@ impl RegisterFile {
             ],
             pc: 0,
             mepc: 0,
+            mie: 0,
             mstatus: 0,
             mtvec: 0,
         }
@@ -52,9 +56,12 @@ impl RegisterFile {
 
     fn csr(&self, address: u16) -> u32 {
         match address {
-            0x108 => 0xff,         // satp - Supervisor address translation and protection
+            0x180 => 0xff,         // satp - Supervisor address translation and protection
             0x300 => self.mstatus, // mstatus
             0x301 => 0x4000_0000, // misa (only encode XLEN for now, encode all available extensions later)
+            0x302 => 0,           // medeleg
+            0x303 => 0,           // mideleg
+            0x304 => self.mie,    // mie
             0x305 => self.mtvec,  // mtvec
             0x340 => 0,           // mscratch
             0x341 => self.mepc,   // mepc
@@ -68,10 +75,18 @@ impl RegisterFile {
 
     fn set_csr(&mut self, address: u16, val: u32) {
         match address {
+            0x180 => {} // ignore satp
+            // standard read/write
             0x300 => {
                 self.mstatus = val;
             }
             0x301 => {} // ignore misa for now
+            0x302 => {} // ignore medeleg
+            0x303 => {} // ignore mideleg
+            0x304 => {
+                eprintln!("setting mie to {val}");
+                self.mie = val;
+            }
             0x305 => {
                 self.mtvec = val;
             }
@@ -81,6 +96,7 @@ impl RegisterFile {
             } // mepc
             0x3a0 => {} // ignore pmpcfg0
             0x3b0 => {} // ignore pmpaddr0
+            // standard read-only (TODO why they're here?)
             0xf11 => {} // ignore mvendorid
             0xf12 => {} // ignore marchid
             0xf13 => {} // ignore mimpid
