@@ -1295,6 +1295,19 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     reader.read_to_end(&mut buffer)?;
 
     let obj_file = object::File::parse(&*buffer)?;
+    if obj_file.architecture() != Architecture::Riscv32 {
+        eprintln!(
+            "expected Riscv32 architecture, but got {:?}",
+            obj_file.architecture()
+        );
+    }
+
+    if obj_file.format() != BinaryFormat::Elf {
+        eprintln!(
+            "expected ELF binary format, but got {:?}",
+            obj_file.format()
+        );
+    }
 
     println!(
         "architecture {:?}, endianness {:?}, entry {:#x}",
