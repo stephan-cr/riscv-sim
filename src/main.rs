@@ -1333,41 +1333,23 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 
     let mut memory = Memory::new();
 
+    // `obj_file.segments()` returns an iterator over all loadable
+    // segments
     for segment in obj_file.segments() {
         eprintln!(
-            "segment address {:#x}, size {}",
+            "segment address {:#x}, size {} {:?}",
             segment.address(),
-            segment.size()
+            segment.size(),
+            segment
         );
-        if let Some(segment_name) = segment.name()? {
-            eprintln!("segment name: {segment_name}");
-        }
-    }
 
-    for section in obj_file.sections() {
-        if section.size() > 0 {
-            match section.kind() {
-                SectionKind::Text | SectionKind::Data | SectionKind::ReadOnlyData => {
-                    memory.insert(
-                        section
-                            .address()
-                            .try_into()
-                            .expect("must be a 32 bit address"),
-                        section.data()?,
-                    );
-                }
-                SectionKind::UninitializedData => {
-                    memory.fill(
-                        section
-                            .address()
-                            .try_into()
-                            .expect("must be a 32 bit address"),
-                        section.size() as usize,
-                    );
-                }
-                _ => {}
-            }
-        }
+        memory.insert(
+            segment
+                .address()
+                .try_into()
+                .expect("must be a 32 bit address"),
+            segment.data()?,
+        );
     }
 
     let mut hart = Hart::new(
