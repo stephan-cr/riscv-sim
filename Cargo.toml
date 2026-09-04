@@ -6,4 +6,4 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 clap = { version = "4.4", default-features = false, features = ["cargo", "deprecated", "help", "std", "usage"] }
-object = { version = "0.36", default-features = false, features = ["std", "read_core", "elf"] }
+object = { version = "0.40", default-features = false, features = ["std", "read_core", "elf"] }
