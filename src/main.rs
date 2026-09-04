@@ -19,7 +19,7 @@ use std::ops::{Index, IndexMut};
 use std::path::PathBuf;
 
 use clap::{crate_name, crate_version, value_parser, Arg, Command};
-use object::{Architecture, BinaryFormat, Object, ObjectSection, ObjectSegment, SectionKind};
+use object::{Architecture, BinaryFormat, Object, ObjectSegment};
 
 #[derive(Debug)]
 struct RegisterFile {
